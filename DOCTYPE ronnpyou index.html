@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>論理表現 例文暗記アプリ（Lesson選択付き）</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            /* スマホでの誤ダブルタップによるズームを防止 */
+            touch-action: manipulation; 
+        }
+        .card-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 550px;
+            text-align: center;
+        }
+        h1.app-title {
+            font-size: 22px;
+            color: #2b6cb0;
+            margin-bottom: 25px;
+            font-weight: bold;
+            border-bottom: 2px solid #ebf8ff;
+            padding-bottom: 10px;
+        }
+        .progress {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .question {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            min-height: 50px;
+            line-height: 1.5;
+        }
+        .answer {
+            font-size: 20px;
+            color: #2b6cb0;
+            font-weight: bold;
+            margin-bottom: 30px;
+            min-height: 50px;
+            display: none;
+            line-height: 1.4;
+            word-break: break-word; 
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            margin: 6px;
+            font-weight: bold;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        /* パソコン・Chromebookでのホバー効果 */
+        @media (hover: hover) {
+            button:hover {
+                opacity: 0.9;
+            }
+        }
+        .unit-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+        .btn-unit { background-color: #3182ce; color: white; margin: 0; padding: 15px 10px; }
+        .btn-mode { background-color: #dd6b20; color: white; width: 100%; margin: 10px 0; padding: 14px; }
+        .btn-show { background-color: #4a5568; color: white; width: 100%; padding: 14px; }
+        .btn-ok { background-color: #48bb78; color: white; width: 45%; }
+        .btn-ng { background-color: #f56565; color: white; width: 45%; }
+        .action-buttons { display: none; justify-content: space-between; }
+        
+        #select-screen, #mode-screen, #quiz-screen, #result-screen { display: none; }
+        .btn-restart { background-color: #3182ce; color: white; width: 100%; margin-bottom: 10px; }
+        .btn-home { background-color: #718096; color: white; width: 100%; margin-top: 10px; padding: 12px; }
+        .btn-back-quiz { background-color: #e2e8f0; color: #4a5568; width: 100%; margin-top: 25px; font-size: 14px; padding: 10px 15px; }
+        
+        .shortcut-tip {
+            font-size: 12px;
+            color: #999;
+            margin-top: 15px;
+            display: none;
+        }
+        /* パソコン環境（キーボードが使える環境）でのみショートカットの案内を表示 */
+        @media (pointer: fine) {
+            .shortcut-tip { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="card-container">
+    <div id="select-screen" style="display: block;">
+        <h1 class="app-title">論理表現 例文暗記アプリ</h1>
+        <h2>Lesson を選択してください</h2>
+        <div id="unit-buttons-container" class="unit-grid"></div>
+    </div>
+
+    <div id="mode-screen">
+        <h2>出題順を選んでください</h2>
+        <p id="selected-unit-text" style="color: #666; font-weight: bold;"></p>
+        <button class="btn-mode" onclick="selectMode(false)">順番通りに出題</button>
+        <button class="btn-mode" onclick="selectMode(true)">ランダムに出題</button>
+        <button class="btn-home" onclick="showHome()">戻る</button>
+    </div>
+
+    <div id="quiz-screen">
+        <div class="progress" id="progress">第 1 問 / 全 0 問</div>
+        <div class="question" id="question">日本語の文</div>
+        
+        <button class="btn-show" id="btn-show" onclick="showAnswer()">答えを見る</button>
+        <div class="answer" id="answer">English Sentence</div>
+        
+        <div class="action-buttons" id="action-buttons">
+            <button class="btn-ng" id="btn-ng" onclick="handleResult(false)">× わからない</button>
+            <button class="btn-ok" id="btn-ok" onclick="handleResult(true)">○ わかった！</button>
+        </div>
+
+        <div class="shortcut-tip" id="shortcut-tip">
+            ショートカットキー: [Space]答えを表示 / [←]わからない / [→]わかった！
+        </div>
+
+        <button class="btn-back-quiz" onclick="showHome()">中断してLesson選択に戻る</button>
+    </div>
+
+    <div class="result-screen" id="result-screen">
+        <h2>セッション終了！</h2>
+        <p id="result-text">Complete！</p>
+        <button class="btn-restart" id="btn-restart" onclick="startReview()">間違えた問題だけで復習する</button>
+        <button class="btn-home" onclick="showHome()">Lesson 選択に戻る</button>
+    </div>
+</div>
+
+<script>
+const originalData = [
+    // === Lesson 3-2 : 時制・完了形② (18問) ===
+    { lesson: "Lesson 3-2", ja: "家に着いたらあなたに電話します。", en: "I will call you when I get home." },
+    { lesson: "Lesson 3-2", ja: "この12月に家族でパリに行きます。", en: "My family is going to visit Paris this December." },
+    { lesson: "Lesson 3-2", ja: "父は明日フランスに向かう。", en: "My father is leaving for France tomorrow." },
+    { lesson: "Lesson 3-2", ja: "コンサートは6時に始まります。", en: "The concert starts at six." },
+    { lesson: "Lesson 3-2", ja: "来週からこの映画館は「タイタニック」を上映します。", en: "This theater will be showing Titanic from next week." },
+    { lesson: "Lesson 3-2", ja: "6時までに仕事を終えていますか。", en: "Will you have finished the work by six?" },
+    { lesson: "Lesson 3-2", ja: "太陽は東から昇り西に沈む。", en: "The sun rises in the east and sets in the west." },
+    { lesson: "Lesson 3-2", ja: "父は5年間、オランダに住んでいた。", en: "My father lived in Holland for five years." },
+    { lesson: "Lesson 3-2", ja: "スミス夫妻は2020年から京都に住んでいる。", en: "Mr. and Mrs. Smith have lived in Kyoto since 2020." },
+    { lesson: "Lesson 3-2", ja: "私は7年間英語を習っている。", en: "I have been learning English for seven years." },
+    { lesson: "Lesson 3-2", ja: "ジムと初めて会ってから5年が過ぎた。", en: "Five years have passed since I first met Jim." },
+    { lesson: "Lesson 3-2", ja: "彼はひざをけがして、今は入院している。", en: "He has hurt his knee and is in the hospital now." },
+    { lesson: "Lesson 3-2", ja: "ライアンはバスが来るまで30分間バス停で待っていた。", en: "Ryan had been waiting at the bus stop for half an hour when the bus came." },
+    { lesson: "Lesson 3-2", ja: "決勝戦が始まろうとしている。", en: "The final game is about to begin." },
+    { lesson: "Lesson 3-2", ja: "当機は成田空港に午後7時に到着する予定です。", en: "This plane is expected to arrive at Narita Airport at 7 p.m." },
+    { lesson: "Lesson 3-2", ja: "彼女は犬を飼おうと思っている。", en: "She is thinking of having a dog." },
+    { lesson: "Lesson 3-2", ja: "何度か東京に行ったことがある。", en: "I have been to Tokyo several times." },
+    { lesson: "Lesson 3-2", ja: "この歌を聞くのは久しぶりだ。", en: "It's been a long time since I last heard this song." },
+
+    // === Lesson 4 : 助動詞 (16問) ===
+    { lesson: "Lesson 4", ja: "風邪を引かないよう気を付けなければなりません。", en: "We must be careful not to catch cold." },
+    { lesson: "Lesson 4", ja: "ごみのポイ捨てがいけないことは誰もがわかっている。", en: "Everybody knows that they must not litter." },
+    { lesson: "Lesson 4", ja: "数学の予習をしないといけない。", en: "I have to prepare for the math lesson." },
+    { lesson: "Lesson 4", ja: "すべての窓に鍵が掛かっているか確認したほうがいい。", en: "We had better check that all the windows are locked." },
+    { lesson: "Lesson 4", ja: "年配者には礼儀正しくし、言葉に気を付けるべきだ。", en: "You should be polite to the elderly and watch your language." },
+    { lesson: "Lesson 4", ja: "夜遅くに外出すべきではない。", en: "You should not go out late at night." },
+    { lesson: "Lesson 4", ja: "もっと早く飛行機の予約をすべきだった。", en: "We should have made our flight reservations earlier." },
+    { lesson: "Lesson 4", ja: "サムの話は本当に違いない。", en: "Sam's story must be true." },
+    { lesson: "Lesson 4", ja: "サムの話は本当であるはずがない。", en: "Sam's story can't be true." },
+    { lesson: "Lesson 4", ja: "この新薬は心臓発作を引き起こすことがある。", en: "This new drug could cause heart attacks." },
+    { lesson: "Lesson 4", ja: "あなたが正しいのかもしれないが、それを違う角度から見てみよう。", en: "You may [might] be right, but let's look at it from a different point of view." },
+    { lesson: "Lesson 4", ja: "私が計算間違いをしたのかもしれない。", en: "I may [might] have made a mistake in my calculations." },
+    { lesson: "Lesson 4", ja: "何かひどいことが彼の身に起こったに違いない。", en: "Something terrible must have happened to him." },
+    { lesson: "Lesson 4", ja: "君はただ黙って座っているだけでいい。", en: "You only have to sit quietly." },
+    { lesson: "Lesson 4", ja: "車を運転するときは、いくら注意してもしすぎるということはない。", en: "You cannot be too careful when you drive." },
+    { lesson: "Lesson 4", ja: "私は君のことが心配で仕方がない。", en: "I can't help worrying about you." },
+
+    // === Lesson 5 : 形容詞句・形容詞的用法 (14問) ===
+    { lesson: "Lesson 5", ja: "もう1ついすが必要です。もう一方の部屋から1つ持って来ます。", en: "We need another chair. I'll go and get one from the other room." },
+    { lesson: "Lesson 5", ja: "交通渋滞は都会生活に付き物だ。", en: "Traffic jams are part of city life." },
+    { lesson: "Lesson 5", ja: "雨の降る音が私の失意を癒やしてくれた。", en: "The sound of falling rain healed my broken heart." },
+    { lesson: "Lesson 5", ja: "京都は神社仏閣で有名な都市だ。", en: "Kyoto is a city famous for its shrines and temples." },
+    { lesson: "Lesson 5", ja: "洞爺湖の写真付きのはがきをもらった。", en: "I got a postcard with a photo of Lake Toya on it." },
+    { lesson: "Lesson 5", ja: "そのチームはリンド氏の後任のコーチを見つけられない。", en: "The team can't find a coach to succeed Mr. Lind." },
+    { lesson: "Lesson 5", ja: "暑いですね。何か冷たい飲み物はいかがですか。", en: "It's hot. Would you like something cold to drink?" },
+    { lesson: "Lesson 5", ja: "特にお話しすることはありません。", en: "I don't have anything special to talk about." },
+    { lesson: "Lesson 5", ja: "あそこの芝生で寝ている男性は私の兄です。", en: "The man lying on the grass over there is my brother." },
+    { lesson: "Lesson 5", ja: "私の家族は自動ブレーキシステムが付いた新しい車を買った。", en: "My family bought a new car equipped with an automatic braking system." },
+    { lesson: "Lesson 5", ja: "ジムは早く家に帰ってくるという約束を守った。", en: "Jim kept his promise to come home early." },
+    { lesson: "Lesson 5", ja: "リサは考えすぎてしまう傾向がある。", en: "Lisa has a tendency to think too much." },
+    { lesson: "Lesson 5", ja: "この summer に北海道の友人を訪ねるという考えはあきらめた。", en: "I've given up the idea of visiting my friend in Hokkaido this summer." },
+    { lesson: "Lesson 5", ja: "ジュリアがスペインから帰ってくるという知らせに彼女の両親は喜んだ。", en: "The news that Julia would come back from Spain delighted her parents." },
+
+    // === Lesson 6 : 関係詞 (14問) ===
+    { lesson: "Lesson 6", ja: "警察は、その事故を目撃した人を探している。", en: "The police are looking for people who [that] witnessed the accident." },
+    { lesson: "Lesson 6", ja: "いつか訪れてみたい国がアジアにはたくさんある。", en: "There are many countries in Asia (which [that]) I would like to visit someday." },
+    { lesson: "Lesson 6", ja: "客は主催者が出した料理をすべて食べた。", en: "The guests ate all the dishes that were served by the host." },
+    { lesson: "Lesson 6", ja: "兄が俳優の友達がいます。", en: "I have a friend whose brother is an actor." },
+    { lesson: "Lesson 6", ja: "トニーが私にこの本を貸してくれましたが、とても感動的でした。", en: "Tony lent me this book, which I found very touching." },
+    { lesson: "Lesson 6", ja: "彼女は戻ってきたが、そのことは私たちみんなにとってとても驚きだった。", en: "She came back, which was a big surprise to us all." },
+    { lesson: "Lesson 6", ja: "あなたに必要なのは質の良い睡眠です。", en: "What you need is a good sleep." },
+    { lesson: "Lesson 6", ja: "子どもの頃によく泳いだビーチにまた行きたい。", en: "I want to revisit the beach where I often swam when I was a child." },
+    { lesson: "Lesson 6", ja: "女性が日本の首相に選ばれる日が来るでしょう。", en: "The day will come when a woman is elected prime minister of Japan." },
+    { lesson: "Lesson 6", ja: "サッカーがそれほど多くの国で人気があるのには十分な理由がある。", en: "There are good reasons why soccer is popular in so many countries." },
+    { lesson: "Lesson 6", ja: "18歳以上の人は誰でも投票できる。", en: "Anyone who is 18 and over can vote." },
+    { lesson: "Lesson 6", ja: "私たちは戦争でなくなった人々に祈りを捧げます。", en: "We pray for those who died in the war." },
+    { lesson: "Lesson 6", ja: "何でも好きなものを注文していいよ。私のおごりだから。", en: "You can order whatever you like. It's on me." },
+    { lesson: "Lesson 6", ja: "メグはアクション映画が好きではない。だから先週、私は彼女を誘わなかった。", en: "Meg doesn't like action movies. That's why I didn't ask her to come with us last week." }
+];
+
+let selectedUnitQuestions = []; 
+let currentQuestions = []; 
+let wrongQuestions = [];   
+let currentIndex = 0;      
+let isRandomMode = false;      
+let isAnswerVisible = false;
+let isQuizActive = false;
+
+function initApp() {
+    isQuizActive = false;
+    const container = document.getElementById("unit-buttons-container");
+    container.innerHTML = "";
+    
+    const lessons = [...new Set(originalData.map(item => item.lesson))];
+    
+    lessons.forEach(lesson => {
+        const btn = document.createElement("button");
+        btn.className = "btn-unit";
+        btn.innerText = lesson;
+        btn.onclick = () => goToModeSelect(lesson);
+        container.appendChild(btn);
+    });
+}
+
+function goToModeSelect(lessonName) {
+    selectedUnitQuestions = originalData.filter(item => item.lesson === lessonName);
+    
+    document.getElementById("selected-unit-text").innerText = `Selected: ${lessonName}`;
+    document.getElementById("select-screen").style.display = "none";
+    document.getElementById("mode-screen").style.display = "block";
+}
+
+function selectMode(shuffleRequired) {
+    isRandomMode = shuffleRequired; 
+    let finalQuestions = [...selectedUnitQuestions];
+    
+    if (isRandomMode) {
+        finalQuestions.sort(() => Math.random() - 0.5);
+    }
+    
+    initQuiz(finalQuestions);
+}
+
+function initQuiz(questionsList) {
+    currentQuestions = [...questionsList];
+    wrongQuestions = [];
+    currentIndex = 0;
+    
+    document.getElementById("mode-screen").style.display = "none";
+    document.getElementById("quiz-screen").style.display = "block";
+    document.getElementById("result-screen").style.display = "none";
+    isQuizActive = true;
+    showQuestion();
+}
+
+function showQuestion() {
+    isAnswerVisible = false;
+    const current = currentQuestions[currentIndex];
+    document.getElementById("progress").innerText = `第 ${currentIndex + 1} 問 / 全 ${currentQuestions.length} 問`;
+    document.getElementById("question").innerText = current.ja;
+    document.getElementById("answer").innerText = current.en;
+    
+    document.getElementById("answer").style.display = "none";
+    document.getElementById("btn-show").style.display = "block";
+    document.getElementById("action-buttons").style.display = "none";
+}
+
+function showAnswer() {
+    isAnswerVisible = true;
+    document.getElementById("answer").style.display = "block";
+    document.getElementById("btn-show").style.display = "none";
+    document.getElementById("action-buttons").style.display = "flex";
+}
+
+function handleResult(isCorrect) {
+    if (!isQuizActive) return;
+    if (!isCorrect) {
+        wrongQuestions.push(currentQuestions[currentIndex]);
+    }
+    currentIndex++;
+    
+    if (currentIndex < currentQuestions.length) {
+        showQuestion();
+    } else {
+        showResult();
+    }
+}
+
+function showResult() {
+    isQuizActive = false;
+    document.getElementById("quiz-screen").style.display = "none";
+    document.getElementById("result-screen").style.display = "block";
+    
+    const resultText = document.getElementById("result-text");
+    const restartBtn = document.getElementById("btn-restart");
+    
+    if (wrongQuestions.length > 0) {
+        resultText.innerText = `終了！間違えた文が ${wrongQuestions.length} つあります。`;
+        restartBtn.style.display = "inline-block";
+    } else {
+        resultText.innerText = "Complete！";
+        restartBtn.style.display = "none";
+    }
+}
+
+function startReview() {
+    let finalWrong = [...wrongQuestions];
+    if (isRandomMode) {
+        finalWrong.sort(() => Math.random() - 0.5);
+    }
+    initQuiz(finalWrong);
+}
+
+function showHome() {
+    isQuizActive = false;
+    document.getElementById("select-screen").style.display = "block";
+    document.getElementById("mode-screen").style.display = "none";
+    document.getElementById("quiz-screen").style.display = "none";
+    document.getElementById("result-screen").style.display = "none";
+    initApp();
+}
+
+// Chromebook(PC)用のキーボードショートカット処理
+window.addEventListener("keydown", function(e) {
+    if (!isQuizActive) return;
+    
+    if (e.code === "Space") {
+        e.preventDefault(); // スペースキーでの画面スクロールを防止
+        if (!isAnswerVisible) {
+            showAnswer();
+        }
+    } else if (e.key === "ArrowLeft") {
+        if (isAnswerVisible) {
+            handleResult(false);
+        }
+    } else if (e.key === "ArrowRight") {
+        if (isAnswerVisible) {
+            handleResult(true);
+        }
+    }
+});
+
+initApp();
+</script>
+
+</body>
+</html>
